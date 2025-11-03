@@ -1,14 +1,15 @@
 #pragma once
 
-#include <iostream>
+#define N_MAX 100
 
-#define MAX_COUNT_GRAPHS 100
-
-class Martix {
+class Matrix {
 public:
 
-int AMatrix[MAX_COUNT_GRAPHS][MAX_COUNT_GRAPHS];
-Martix(); 
+int AdjMatrix[N_MAX][N_MAX];
+int size;
+
+Matrix(); 
+void enter_matrix();
 
 
 
