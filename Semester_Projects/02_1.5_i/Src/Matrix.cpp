@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <limits>
 
 using namespace std;
 
@@ -21,29 +22,26 @@ void Matrix::enter_matrix() {
     while (true) {
         cout << "\nEnter i, j: ";
 
-        // 1. Проверка на IO-ошибку (пользователь завершил ввод, введя нечисловое значение)
         if (!(cin >> i >> j)) {
             if (cin.eof()) { 
                 // Обработка EOF (конец файла)
                 break;
             }
             // Очищаем флаги ошибок cin и игнорируем оставшуюся строку 
-            cin.clear();
+            cin.clear(); 
             cin.ignore(numeric_limits<streamsize>::max(), '\n');
-            break; // Завершаем ввод по нечисловому символу
+            return;
         }
 
         cout << "Enter distance (x_" << i << ", x_" << j << "): ";
 
-        // 2. Проверка дистанции на IO-ошибку
         if (!(cin >> dist)) {
-            // Аналогично, если dist не удалось прочитать, завершаем ввод.
             if (cin.eof()) { 
                 break;
             }
+            // Ошибка: нечисловой ввод для dist.
             cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
-            break;
+            return;
         }
 
         // 3. Валидация данных с использованием ИСКЛЮЧЕНИЙ
@@ -68,6 +66,5 @@ void Matrix::enter_matrix() {
         if (max_index < j) max_index = j;
     }
 
-    // Обновляем фактический размер графа
     size = max_index + 1;
 }

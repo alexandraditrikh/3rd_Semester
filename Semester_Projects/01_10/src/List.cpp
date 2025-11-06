@@ -41,9 +41,18 @@ void set_variable_value(VariableNode*& top, const char* ident_str, int value, in
     VariableNode* new_node = create_new_variable_node(ident_str, value, m);
     
     if (new_node != nullptr) {
-        new_node->next = top;
+    if (top == nullptr) {
+        // 1. Список пуст: new_node становится головой списка
         top = new_node;
+    } else {
+        // 2. Список не пуст: ищем последний узел
+        VariableNode* cur = top;
+        // Цикл находит последний узел, у которого next == nullptr
+        for (; cur->next != nullptr; cur = cur->next) {} 
+        // Присоединяем новый узел к концу
+        cur->next = new_node;
     }
+}
 }
 
 int get_variable_value(VariableNode*& top, const char* ident_str, int m) {

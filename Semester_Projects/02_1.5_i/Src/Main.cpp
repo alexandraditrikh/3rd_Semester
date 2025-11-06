@@ -9,7 +9,10 @@ using namespace std;
 const int INF = std::numeric_limits<int>::max();
 
 Path* creating_base_path(const Matrix& Matrix, int& final_path) {
-    if (Matrix.size < 3) return nullptr;
+    if (Matrix.size < 3) {
+        cerr << "ERROR Matrix.size < 3" << endl;
+        return nullptr;
+    }
 
     int n = Matrix.size;
 
@@ -26,7 +29,10 @@ Path* creating_base_path(const Matrix& Matrix, int& final_path) {
         }
     }
 
-    if (x_i == -1) return nullptr; 
+    if (x_i == -1) {
+        cerr << "ERROR x_i == -1" << endl;
+        return nullptr;
+    }
 
     min_dist = INF; 
     int x_k = -1;
@@ -38,7 +44,10 @@ Path* creating_base_path(const Matrix& Matrix, int& final_path) {
         }
     }
     
-    if (x_k == -1) return nullptr; 
+    if (x_k == -1) {
+        cerr << "ERROR x_k == -1" << endl;
+        return nullptr; 
+    }
 
     final_path = 0;
     Path* path = new Path(x_i); 
@@ -50,50 +59,90 @@ Path* creating_base_path(const Matrix& Matrix, int& final_path) {
     return path;
 }
 
-
-
 Path* task(const Matrix& Matrix, int& final_path) {
     Path* P_i = creating_base_path(Matrix, final_path);
-    if (!P_i) return nullptr;
+    if (!P_i) {
+        cerr << "ERROR !P_i = creating_base_path(Matrix, final_path);" << endl;
+        return nullptr;
+    } 
 
     int n = Matrix.size;
     
+    // Массив для отслеживания использованных узлов.
+    // Узлы в P_i уже должны быть помечены как true.
     bool* used_nodes = new bool[n];
     for (int i = 0; i < n; i++)
         used_nodes[i] = false;
 
-    Node* cur = P_i->top;
+    // Помечаем узлы в начальном пути P_i как использованные (true).
     Node* temp_cur = P_i->top;
     do {
-        used_nodes[temp_cur->id] = false;
+        used_nodes[temp_cur->id] = true; // <-- Устанавливаем в true
         temp_cur = temp_cur->next;
     } while (temp_cur != P_i->top);
     
-    
+    // Итерации: начинаем с i=3, пока не добавим все n узлов.
     for (int i = 3; i < n; i++) {
-        int x_l = -1, x_m = -1, min_path = INF;
+        
+        int best_l = -1; // Новый узел x_l (вне пути)
+        int best_m = -1; // Узел x_m (в пути), перед которым вставим x_l
+        int best_r = -1; // Узел x_r (в пути), который идет после x_m (т.е. cur->next)
 
+        // Минимальное увеличение длины пути (min_increase = D(xm, xl) + D(xl, xr) - D(xm, xr))
+        int min_increase = INF; 
+
+        // 1. Ищем лучший узел x_l (не в пути) для вставки
         for (int l = 0; l < n; l++) {
-            int cur_min = INF;
-
-            if (!used_nodes[l]) {
-                for (Node* cur = P_i->top; cur != P_i->tail; cur = cur->next) {
-                    if (Matrix.AdjMatrix[cur->id][l] < cur_min) {
-                        cur_min = Matrix.AdjMatrix[cur->id][l];
-                        x_l = l, x_m = cur->id;
-                    }
-                }
+            // Пропускаем узлы, которые уже в пути
+            if (used_nodes[l]) {
+                continue;
             }
 
-            if (cur_min < min_path) min_path = cur_min;
+            // 2. Ищем лучшее место (ребро x_m -> x_r) для вставки x_l
+            Node* cur_m = P_i->top;
+            do {
+                int m_id = cur_m->id;
+                int r_id = cur_m->next->id;
+                
+                // Рассчитываем увеличение длины: D(m, l) + D(l, r) - D(m, r)
+                // Проверяем, что рёбра существуют (AdjMatrix > 0 или не INF)
+                int dist_ml = Matrix.AdjMatrix[m_id][l];
+                int dist_lr = Matrix.AdjMatrix[l][r_id];
+                int dist_mr = Matrix.AdjMatrix[m_id][r_id];
+
+                // Проверка на корректные расстояния (чтобы избежать переполнения при сложении с INF)
+                if (dist_ml != INF && dist_lr != INF && dist_mr != INF) {
+                    
+                    int current_increase = dist_ml + dist_lr - dist_mr;
+                    
+                    if (current_increase < min_increase) {
+                        min_increase = current_increase;
+                        best_l = l;
+                        best_m = m_id;
+                        best_r = r_id; // Фактически не используется в insert_node_after, но полезно для отладки
+                    }
+                }
+                
+                cur_m = cur_m->next;
+            } while (cur_m != P_i->top); // Циклический обход
+
+        } // Конец цикла по l
+
+        // Проверяем, нашли ли мы лучший узел для вставки
+        if (best_l == -1 || best_m == -1) {
+             // Если не найдено ни одного пути, это ошибка или граф не связный
+             cerr << "ERROR best_l == -1 || best_m == -1" << endl;
+             delete[] used_nodes;
+             return nullptr;
         }
 
-        if (x_l == -1 || x_m == -1) return nullptr;
-
-        //final_path -= Matrix.AdjMatrix[x_m][x_l];
-        P_i->insert_node_after(x_m, x_l);
-        //final_path += Matrix.AdjMatrix[x_m][x_l];
-    }
+        // 3. Вставляем найденный узел x_l после x_m
+        P_i->insert_node_after(best_m, best_l);
+        
+        // 4. Обновляем использованные узлы и общую длину пути
+        used_nodes[best_l] = true;
+        final_path += min_increase;
+    } // Конец цикла по i
 
     delete[] used_nodes;
     return P_i;
@@ -102,7 +151,10 @@ Path* task(const Matrix& Matrix, int& final_path) {
 int main() {
     Matrix Matrix;
     Matrix.enter_matrix();
-    if (Matrix.size == 0) return 1;
+    if (Matrix.size == 0) {
+        cerr << "Matrix.size == 0" << endl;
+        return 1;
+    }
 
     int final_path = 0;
     Path* result_path = task(Matrix, final_path);
@@ -115,15 +167,15 @@ int main() {
             if (!cur->next) {
                 cerr << "!cur->next" << endl;
                 return -1;
-
             }
             j = cur->next->id;
 
             if (i != -1 && j != -1 && i != j) final_path += Matrix.AdjMatrix[i][j];
         } 
-        delete result_path; 
-
-    } else cerr << "!res path\n";
+        delete result_path;
+    } else cerr << "ERROR !res path\n";
     
+    cout << final_path << endl;
+
     return 0;
 }

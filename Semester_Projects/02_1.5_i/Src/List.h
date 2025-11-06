@@ -16,11 +16,10 @@ public:
     Node* top; 
     Node* tail; 
 
-    Path(int initial_id) {}
+    Path(int initial_id); 
 
-    void append_node(int new_id) {}
-    void insert_node_after (int m_id, int l_id) {}
+    void append_node(int new_id);
+    void insert_node_after (int m_id, int l_id);
 
-    ~Path() {}
+    ~Path();
 };
-

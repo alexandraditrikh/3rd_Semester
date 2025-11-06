@@ -143,45 +143,32 @@ bool calculate_condition(char* cond, int m, VariableNode*& top) {
 bool task(ifstream& in, int m, char* ident, bool& condition_val, int& expr1_value, int& expr2_value, VariableNode*& top) {
     char c;
 
-    int s = 25; 
+    while (in.peek() != EOF && isspace(in.peek())) {
+        in.get();
+    }
+    if (in.peek() == EOF) {
+        // Достигли конца файла, но это не ошибка, просто больше нет выражений
+        return true; 
+    }
+
+    int s = 0; // Начальное состояние
     int count = 0;
     int count_dig = 0;
-    
+
     int ident_idx = 0;
     int condition_idx = 0;
     int expr1_idx = 0;
     int expr2_idx = 0;
-    
-    char condition_str[MAX_SIZE_COND] = {0}; 
+
+    char condition_str[MAX_SIZE_COND] = {0};
     char expr1_str[MAX_SIZE_EXPR] = {0};
     char expr2_str[MAX_SIZE_EXPR] = {0};
 
     char current_op = '\0';
-
-    int err_case = 0; 
+    int err_case = 0;
     
-    while (in.get(c) || s == 25) {
-        if (s == 25) {
-            if (in.eof()) break; 
-
-            ident_idx = 0;
-            condition_idx = 0;
-            expr1_idx = 0;
-            expr2_idx = 0;
-            count = 0;
-            count_dig = 0;
-            current_op = '\0';
-
-            memset(ident, 0, MAX_IDENT_LENGTH + 1);
-            memset(condition_str, 0, MAX_SIZE_COND);
-            memset(expr1_str, 0, MAX_SIZE_EXPR);
-            memset(expr2_str, 0, MAX_SIZE_EXPR);
-
-            s = 0;
-            if (isspace(c)) continue;
-        }
-        
-        if (isspace(c)) continue;
+    while (in.get(c)) {
+        if (s > 0 && isspace(c)) continue;
 
         switch (s) {
         case 0: {
@@ -250,11 +237,15 @@ bool task(ifstream& in, int m, char* ident, bool& condition_val, int& expr1_valu
                     s = 100;
                 }
             } else {
-                if (count_dig != SIZE_DIGIT) { 
-                    err_case = 3;
-                    s = 100;
-                    break;
+                if (count_dig == 0 || (SIZE_DIGIT > 0 && count_dig != SIZE_DIGIT)) { 
+                    err_case = 3; s = 100; break;
                 }
+                in.unget();
+                while (in.peek() != EOF && isspace(in.peek())) {
+                    in.get();
+                }
+                if (!in.get(c)) { err_case = 3; s = 100; break; }
+
                 if (c == '>' || c == '<' || c == '=') {
                     if (in.peek() == '=') {
                         condition_str[condition_idx++] = c;
@@ -589,7 +580,7 @@ bool task(ifstream& in, int m, char* ident, bool& condition_val, int& expr1_valu
                 else if (c == ';') {
                     expr2_str[expr2_idx] = '\0';
                     expr2_value = calculate_expression(expr2_str, m, top);
-                    s = 25; 
+                    return true;
                 }
                 else { 
                     err_case = 16;
@@ -616,7 +607,7 @@ bool task(ifstream& in, int m, char* ident, bool& condition_val, int& expr1_valu
             else if (c == ';') {
                 expr2_str[expr2_idx] = '\0';
                 expr2_value = calculate_expression(expr2_str, m, top);
-                s = 25; 
+                return true;
             }
             else { 
                 err_case = 17;
@@ -673,7 +664,7 @@ bool task(ifstream& in, int m, char* ident, bool& condition_val, int& expr1_valu
                 } 
                 expr2_str[expr2_idx] = '\0';
                 expr2_value = calculate_expression(expr2_str, m, top);
-                s = 25; 
+                return true;
             }
             else { 
                 err_case = 19;
@@ -693,7 +684,7 @@ bool task(ifstream& in, int m, char* ident, bool& condition_val, int& expr1_valu
             else if (c == ';') {
                 expr2_str[expr2_idx] = '\0';
                 expr2_value = calculate_expression(expr2_str, m, top);
-                s = 25; 
+                return true;
             }
             else { 
                 err_case = 27;
@@ -701,11 +692,7 @@ bool task(ifstream& in, int m, char* ident, bool& condition_val, int& expr1_valu
             }
             break;
         }
-       
-        case 25: {
-            if (in.eof()) return true; 
-            break;
-        }  
+
         case 100: {
             cout << "false in " << err_case << endl;
             return false;
@@ -717,7 +704,7 @@ bool task(ifstream& in, int m, char* ident, bool& condition_val, int& expr1_valu
 
         }
     }
-    return s == 25;
+    return s == 0;
 }
 
 int main() {
@@ -746,17 +733,16 @@ int main() {
     VariableNode* top = nullptr; 
 
     bool isValid = true;
-    while (isValid && !in.eof()) {
+    while (isValid && in.peek() != EOF) {
+        memset(ident, 0, MAX_IDENT_LENGTH + 1);
+        condition_val = false;
+        expr1_value = 0;
+        expr2_value = 0;
+
         if (task(in, m, ident, condition_val, expr1_value, expr2_value, top)) {
 
             int final_result = condition_val ? expr1_value : expr2_value;
             set_variable_value(top, ident, final_result, m);
-
-            cout << "Assigned " << ident << " = " << final_result 
-             << " (condition: " << condition_val 
-             << ", expr1: " << expr1_value 
-             << ", expr2: " << expr2_value << ")" << endl;
-             
         } else {
             isValid = false;
         }
