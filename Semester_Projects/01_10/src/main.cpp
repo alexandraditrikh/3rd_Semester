@@ -13,46 +13,27 @@
 
 using namespace std;
 
-
 int calculate_expression(char* expr, int m, VariableNode*& top) {
     int result = 0;
     char operation = '+';
     int i = 0;
 
     while (expr[i] != '\0') {
-        if (isspace(expr[i])) {
+        int val = 0;
+        bool is_negative = false;
+    
+        if (expr[i] == '-' && (i == 0 || expr[i-1] == '+' || expr[i-1] == '-' || expr[i-1] == '*' || expr[i-1] == '/')) {
+            is_negative = true;
             i++;
-            continue;
         }
-
-        if (isdigit(expr[i]) || (expr[i] == '-' && isdigit(expr[i + 1]))) {
-            int num_val = 0;
-            bool is_negative = false;
-            if (expr[i] == '-') {
-                is_negative = true;
-                i++;
-            }
-            
+    
+        if (isdigit(expr[i])) {
             while (isdigit(expr[i]) && expr[i] != '\0') {
-                num_val = num_val * 10 + (expr[i] - '0');
+                val = val * 10 + (expr[i] - '0');
                 i++;
             }
-            if (is_negative) {
-                num_val = -num_val;
-            }
-            
-            switch (operation) {
-                case '+': result += num_val; break;
-                case '-': result -= num_val; break;
-                case '*': result *= num_val; break;
-                case '/': if (num_val != 0) result /= num_val; break;
-                default: {
-                    cerr << "Err: Operation is not + or - or * or /\n";
-                    return result;
-                }
-            }
-        
         } 
+       
         else if (isalpha(expr[i])) {
             char current_ident[MAX_IDENT_LENGTH + 1] = {0};
             int ident_idx = 0;
@@ -63,19 +44,49 @@ int calculate_expression(char* expr, int m, VariableNode*& top) {
             }
             current_ident[ident_idx] = '\0';
             
-            int ident_val = get_variable_value(top, current_ident, m);
-            switch (operation) {
-                case '+': result += ident_val; break;
-                case '-': result -= ident_val; break;
-                case '*': result *= ident_val; break;
-                case '/': if (ident_val != 0) result /= ident_val; break;
+            val = get_variable_value(top, current_ident, m);
+            if (ident_idx > m) { 
+                cerr << "Err: Identifier name too long in expression\n";
+                return 0; 
             }
-        } 
-        else if (expr[i] == '+' || expr[i] == '-' || expr[i] == '*' || expr[i] == '/') {
+        } else {
+            if (expr[i] == '+' || expr[i] == '-' || expr[i] == '*' || expr[i] == '/') {
+                operation = expr[i];
+                i++;
+                continue;
+            } else {
+                cerr << "Err: Unexpected symbol in expression: " << expr[i] << " at index " << i << endl;
+                break;
+            }
+        }
+
+        if (is_negative) {
+            val = -val;
+        }
+
+        switch (operation) {
+            case '+': result += val; break;
+            case '-': result -= val; break;
+            case '*': result *= val; break;
+            case '/': 
+                if (val != 0) {
+                    result /= val; 
+                } else {
+                    cerr << "Err: Division by zero\n";
+                    return 0;
+                }
+                break;
+            default: break; 
+        }
+
+        while (expr[i] != '\0' && (isspace(expr[i]))) { 
+            i++;
+        }
+        
+        if (expr[i] != '\0') {
             operation = expr[i];
             i++;
-        } 
-        else i++;
+        }
     }
     return result;
 }
@@ -83,49 +94,50 @@ int calculate_expression(char* expr, int m, VariableNode*& top) {
 bool calculate_condition(char* cond, int m, VariableNode*& top) {
     char left[MAX_SIZE_EXPR] = {0};
     char right[MAX_SIZE_EXPR] = {0};
-    char op = '\0';
-    bool is_sost = false;
-
-    int i = 0, left_idx = 0, right_idx = 0;
-    bool in_left = true;
+    char op_str[3] = {0};
+    
+    int i = 0, op_idx = 0;
+    bool operator_found = false;
 
     while (cond[i] != '\0') {
-        if (cond[i] == '>' || cond[i] == '<' || cond[i] == '=') {
-            if (op == '\0') {
-                op = cond[i];
-                in_left = false;
-            } else if (cond[i] == '=' && (op == '>' || op == '<')) {
-                is_sost = true;
-            }
-            i++;
-        } else {
-            if (in_left) {
-                left[left_idx++] = cond[i];
-            } else {
-                right[right_idx++] = cond[i];
-            }
-            i++;
+        if (cond[i] == '<' || cond[i] == '>' || cond[i] == '=') {
+            operator_found = true;
+            break;
         }
+        left[i] = cond[i];
+        i++;
     }
     
-    left[left_idx] = '\0';
-    right[right_idx] = '\0';
-    
+    if (operator_found) {
+        op_str[op_idx++] = cond[i++];
+        if ((op_str[0] == '<' || op_str[0] == '>') && cond[i] == '=') {
+            op_str[op_idx++] = cond[i++];
+        } else if (op_str[0] == '=' && cond[i] == '=') {
+            op_str[op_idx++] = cond[i++];
+        }
+    }
+
+    int right_start = i;
+    int right_idx = 0;
+    while (cond[i] != '\0') {
+        right[right_idx++] = cond[i];
+        i++;
+    }
+
+    if (op_idx == 0 || left[0] == '\0' || right[0] == '\0') {
+        return false; 
+    }
+
     int left_val = calculate_expression(left, m, top);
     int right_val = calculate_expression(right, m, top);
+
+    if (strcmp(op_str, "==") == 0) return left_val == right_val;
+    if (strcmp(op_str, "<=") == 0) return left_val <= right_val;
+    if (strcmp(op_str, ">=") == 0) return left_val >= right_val;
+    if (strcmp(op_str, "<") == 0) return left_val < right_val;
+    if (strcmp(op_str, ">") == 0) return left_val > right_val;
     
-    switch (op) {
-        case '>': {
-            if (is_sost) return left_val >= right_val;
-            return left_val > right_val;
-        }
-        case '<': {
-            if (is_sost) return left_val <= right_val;
-            return left_val < right_val;
-        }
-        case '=': return left_val == right_val;
-        default: return false; 
-    }
+    return false;
 }
 
 bool task(ifstream& in, int m, char* ident, bool& condition_val, int& expr1_value, int& expr2_value, VariableNode*& top) {
@@ -149,18 +161,9 @@ bool task(ifstream& in, int m, char* ident, bool& condition_val, int& expr1_valu
     int err_case = 0; 
     
     while (in.get(c) || s == 25) {
-        // Если предыдущее состояние было 25, а символ не был прочитан,
-        // это означает, что нам нужно выполнить сброс и попробовать прочитать снова
         if (s == 25) {
-            
-            // Если символ не был прочитан (EOF), выходим
             if (in.eof()) break; 
-            
-            // Символ был прочитан (или мы вернули его unget'ом на прошлой итерации), 
-            // но мы еще не обработали его. Мы его потеряли, но это нормально, 
-            // так как в case 25 мы сбрасываем и переходим в s=0.
-            
-            // Сброс всех переменных для новой команды
+
             ident_idx = 0;
             condition_idx = 0;
             expr1_idx = 0;
@@ -168,22 +171,17 @@ bool task(ifstream& in, int m, char* ident, bool& condition_val, int& expr1_valu
             count = 0;
             count_dig = 0;
             current_op = '\0';
-            
-            // Очистка буферов
+
             memset(ident, 0, MAX_IDENT_LENGTH + 1);
             memset(condition_str, 0, MAX_SIZE_COND);
             memset(expr1_str, 0, MAX_SIZE_EXPR);
             memset(expr2_str, 0, MAX_SIZE_EXPR);
 
-            s = 0; // Переход в начальное состояние для нового идентификатора
-            
-            // Прочитанный символ (c) будет обработан на следующей итерации цикла
-            // (или мы прочитаем новый, если текущий был пробелом)
-            
-            if (isspace(c)) continue; // Если прочитанный символ был пробелом, читаем следующий
+            s = 0;
+            if (isspace(c)) continue;
         }
         
-        if (isspace(c)) continue; // Игнорируем пробелы, если не в состоянии 25
+        if (isspace(c)) continue;
 
         switch (s) {
         case 0: {
@@ -705,15 +703,7 @@ bool task(ifstream& in, int m, char* ident, bool& condition_val, int& expr1_valu
         }
        
         case 25: {
-            // Если мы сюда дошли, значит предыдущая команда успешно завершилась
-            // и был прочитан символ 'c' (который уже обработан в начале цикла).
-            
-            // Если достигнут конец файла, завершаем успешно
             if (in.eof()) return true; 
-            
-            // Если s=25, но in.get(c) не вернул EOF,
-            // мы вернемся в начало цикла, где s=25 сбросится в s=0
-            
             break;
         }  
         case 100: {
@@ -727,8 +717,6 @@ bool task(ifstream& in, int m, char* ident, bool& condition_val, int& expr1_valu
 
         }
     }
-    
-    // Если цикл завершился (EOF), проверяем, была ли последняя команда завершена
     return s == 25;
 }
 
@@ -755,42 +743,37 @@ int main() {
     int expr1_value = 0;
     int expr2_value = 0;
 
-    VariableNode* top = nullptr; // Инициализация списка переменных
+    VariableNode* top = nullptr; 
 
     bool isValid = true;
     while (isValid && !in.eof()) {
         if (task(in, m, ident, condition_val, expr1_value, expr2_value, top)) {
-            cout << "\n--- Command successful ---" << endl;
-            
-            int final_result = condition_val ? expr1_value : expr2_value;
-            
-            // Установка значения переменной, если команда была валидна
-            set_variable_value(top, ident, final_result, m); // Обновляем значение
 
-            cout << "Condition result: " << (condition_val ? "true" : "false") << endl;
-            cout << "Expression 1 value: " << expr1_value << endl;
-            cout << "Expression 2 value: " << expr2_value << endl;
-            cout << "Final result for " << ident << ": " << final_result << endl; 
-            
+            int final_result = condition_val ? expr1_value : expr2_value;
+            set_variable_value(top, ident, final_result, m);
+
+            cout << "Assigned " << ident << " = " << final_result 
+             << " (condition: " << condition_val 
+             << ", expr1: " << expr1_value 
+             << ", expr2: " << expr2_value << ")" << endl;
+             
         } else {
             isValid = false;
         }
     }
 
-    cout << (isValid ? "\n All expressions are valid" : "\n Expression is not valid");
+    cout << (isValid ? "All expressions are valid\n\n" : "Expression is not valid\n");
 
     if (isValid) {
-        cout << "\n\n=== Final State of Variables ===" << endl;
         VariableNode* current = top;
         if (current == nullptr) {
             cout << "No variables assigned." << endl;
         } else {
             while(current != nullptr) {
-                cout << "**" << current->name << "** = " << current->value << endl;
+                cout << current->name << " = " << current->value << endl;
                 current = current->next;
             }
         }
-        cout << "======================================" << endl;
     }
 
     in.close();

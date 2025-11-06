@@ -1,7 +1,11 @@
+#include <limits>
+#include <iostream>
+
 #include "List.h"
 #include "Matrix.h"
 
 using namespace std;
+
 const int INF = std::numeric_limits<int>::max();
 
 Path* creating_base_path(const Matrix& Matrix, int& final_path) {
@@ -48,11 +52,7 @@ Path* creating_base_path(const Matrix& Matrix, int& final_path) {
 
 
 
-Path* task(int& final_path) {
-    Matrix Matrix;
-    Matrix.enter_matrix();
-    if (Matrix.size == 0) return nullptr;
-
+Path* task(const Matrix& Matrix, int& final_path) {
     Path* P_i = creating_base_path(Matrix, final_path);
     if (!P_i) return nullptr;
 
@@ -71,25 +71,28 @@ Path* task(int& final_path) {
     
     
     for (int i = 3; i < n; i++) {
-    
         int x_l = -1, x_m = -1, min_path = INF;
 
         for (int l = 0; l < n; l++) {
-            int cur_path = INF;
-            if (!used_nodes[l]) {
+            int cur_min = INF;
 
+            if (!used_nodes[l]) {
                 for (Node* cur = P_i->top; cur != P_i->tail; cur = cur->next) {
-                    if (Matrix.AdjMatrix[cur->id][l] < cur_path) {
-                        cur_path = Matrix.AdjMatrix[cur->id][l];
+                    if (Matrix.AdjMatrix[cur->id][l] < cur_min) {
+                        cur_min = Matrix.AdjMatrix[cur->id][l];
                         x_l = l, x_m = cur->id;
                     }
                 }
             }
+
+            if (cur_min < min_path) min_path = cur_min;
         }
 
-        if (x_l == -1) return nullptr;
+        if (x_l == -1 || x_m == -1) return nullptr;
 
+        //final_path -= Matrix.AdjMatrix[x_m][x_l];
         P_i->insert_node_after(x_m, x_l);
+        //final_path += Matrix.AdjMatrix[x_m][x_l];
     }
 
     delete[] used_nodes;
@@ -97,13 +100,30 @@ Path* task(int& final_path) {
 }
 
 int main() {
+    Matrix Matrix;
+    Matrix.enter_matrix();
+    if (Matrix.size == 0) return 1;
+
     int final_path = 0;
-    Path* result_path = task(final_path);
+    Path* result_path = task(Matrix, final_path);
     
     if (result_path) {
-       
+        int i = -1, j = -1;
+
+        for (Node* cur = result_path->top; cur != result_path->tail; cur = cur->next->next) {
+            i = cur->id;
+            if (!cur->next) {
+                cerr << "!cur->next" << endl;
+                return -1;
+
+            }
+            j = cur->next->id;
+
+            if (i != -1 && j != -1 && i != j) final_path += Matrix.AdjMatrix[i][j];
+        } 
         delete result_path; 
-    }
+
+    } else cerr << "!res path\n";
     
     return 0;
 }

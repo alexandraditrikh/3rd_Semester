@@ -1,1 +1,1 @@
-X= +00100 < A1 ?-10203: X+ -35010; Y= A==B? X + Y:X/Y; MIN = A < B ? A : B;
+Y= A==B? X + Y:X-Y; MIN = A < B ? A : B;
